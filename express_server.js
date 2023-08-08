@@ -11,9 +11,27 @@ const urlDatabase = {
 
 app.use(express.urlencoded({ extended: true }));
 
+function generateRandomString() {
+  const characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let randomString = "";
+  for (let i = 0; i < 6; i++) {
+    const randomIndex = Math.floor(Math.random() * characters.length);
+    randomString += characters[randomIndex];
+  }
+  return randomString;
+}
+
 app.post("/urls", (req, res) => {
-  console.log(req.body); // Log the POST request body to the console
-  res.send("Ok"); // Respond with 'Ok' (we will replace this)
+  const longURL = req.body.longURL; 
+  const id = generateRandomString();
+  urlDatabase[id] = longURL;
+  res.redirect(`/urls/${id}`);
+});
+
+app.get("/u/:id", (req, res) => {
+  const id = req.params.id; // Get the ID from the URL parameter
+  const longURL = urlDatabase[id]; // Get the longURL corresponding to the ID from the urlDatabase
+  res.redirect(longURL); // Redirect to the longURL
 });
 
 app.get("/urls/new", (req, res) => {
