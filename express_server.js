@@ -69,5 +69,15 @@ app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
 
+app.post("/urls/:id/delete", (req, res) => {
+  const idToDelete = req.params.id;
+
+  if (urlDatabase[idToDelete]) {
+    delete urlDatabase[idToDelete];
+    res.redirect("/urls");
+  } else {
+    res.status(404).send("URL not found");
+  }
+});
 
 function generateRandomString() {}
