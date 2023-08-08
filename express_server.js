@@ -88,9 +88,28 @@ app.post("/urls/:id/update", (req, res) => {
 
   if (urlDatabase[idToUpdate]) {
     urlDatabase[idToUpdate] = updatedURL;
-    res.redirect(`/urls`);
+    res.redirect(`/urls/${idToUpdate}`); 
   } else {
     res.status(404).send("URL not found");
   }
 });
 
+app.post("/login", (req, res) => {
+  const { username } = req.body;
+
+  if (username === "validUser") {
+    res.cookie("user", username, {
+      maxAge: 3600000,
+      httpOnly: true,
+    });
+    res.redirect("/urls");
+  } else {
+    res.status(401).send("Invalid credentials\n");
+  }
+});
+
+
+app.get("/set-cookie", (req, res) => {
+  res.cookie("user", "jake");
+  res.send("cookie has been set!");
+});
