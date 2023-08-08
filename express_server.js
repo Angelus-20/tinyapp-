@@ -29,9 +29,9 @@ app.post("/urls", (req, res) => {
 });
 
 app.get("/u/:id", (req, res) => {
-  const id = req.params.id; // Get the ID from the URL parameter
-  const longURL = urlDatabase[id]; // Get the longURL corresponding to the ID from the urlDatabase
-  res.redirect(longURL); // Redirect to the longURL
+  const id = req.params.id;
+  const longURL = urlDatabase[id];
+  res.redirect(longURL); 
 });
 
 app.get("/urls/new", (req, res) => {
@@ -44,7 +44,9 @@ app.get("/urls", (req, res) => {
 });
 
 app.get("/urls/:id", (req, res) => {
-  const templateVars = { id: req.params.id, longURL: urlDatabase};
+  const id = req.params.id;
+  const longURL = urlDatabase[id];
+  const templateVars = { id:id, longURL:longURL };
   res.render("urls_show", templateVars);
 });
 
@@ -80,4 +82,15 @@ app.post("/urls/:id/delete", (req, res) => {
   }
 });
 
-function generateRandomString() {}
+app.post("/urls/:id/update", (req, res) => {
+  const idToUpdate = req.params.id;
+  const updatedURL = req.body.updatedURL;
+
+  if (urlDatabase[idToUpdate]) {
+    urlDatabase[idToUpdate] = updatedURL;
+    res.redirect(`/urls`);
+  } else {
+    res.status(404).send("URL not found");
+  }
+});
+
