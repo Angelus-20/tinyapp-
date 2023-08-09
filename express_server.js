@@ -115,18 +115,9 @@ app.post("/urls/:id/submit", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  const { username, password } = req.body;
-
-  // if (username === users) {
+  const { username } = req.body;
     res.cookie("user", username);
     res.redirect("/urls");
-  // if (password === "12345"){
-  //   res.redirect("/urls");
-  //   // res.redirect("/profile")
-  // } 
-// } else {
-//     res.redirect("/")
-//   }
 });
 
 app.get("/profile", (req, res) => {
@@ -139,7 +130,8 @@ app.get("/set-cookie", (req, res) => {
 });
 
 
-// app.post("/logout"), (req, res) => {
-//   res.clearCookie("userid");
-//   res.redirect("/urls");
-// } // make logout button
+app.post("/logout"), (req, res) => {
+  const { username } = req.body;
+  res.clearCookie("users", username);
+  res.redirect("/urls");
+};
