@@ -1,13 +1,22 @@
 const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
+const cookieParser = require('cookie-parser')
 
 app.set("view engine", "ejs");
+app.use(cookieParser())
 
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
 };
+
+const users = {
+  1: {
+    user: "jake",
+    password: "12345"
+  }
+}
 
 app.use(express.urlencoded({ extended: true }));
 
@@ -35,18 +44,19 @@ app.get("/u/:id", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new");
+  const templateVars = {username: req.cookies["user"], };
+  res.render("urls_new", templateVars);
 });
 
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlDatabase };
+  const templateVars = { urls: urlDatabase, username: req.cookies["user"], };
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/:id", (req, res) => {
   const id = req.params.id;
   const longURL = urlDatabase[id];
-  const templateVars = { id:id, longURL:longURL };
+  const templateVars = { id:id, longURL:longURL, username: req.cookies["user"]};
   res.render("urls_show", templateVars);
 });
 
@@ -94,22 +104,42 @@ app.post("/urls/:id/update", (req, res) => {
   }
 });
 
-app.post("/login", (req, res) => {
-  const { username } = req.body;
+app.post("/urls/:id/submit", (req, res) => {
+  const idToUpdate = req.params.id;
+  const updatedURL = req.body.updatedURL;
 
-  if (username === "validUser") {
-    res.cookie("user", username, {
-      maxAge: 3600000,
-      httpOnly: true,
-    });
-    res.redirect("/urls");
-  } else {
-    res.status(401).send("Invalid credentials\n");
+  if (urlDatabase[idToUpdate]) {
+    urlDatabase[idToUpdate] = updatedURL;
+    res.redirect(`/urls`);
   }
 });
 
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+
+  // if (username === users) {
+    res.cookie("user", username);
+    res.redirect("/urls");
+  // if (password === "12345"){
+  //   res.redirect("/urls");
+  //   // res.redirect("/profile")
+  // } 
+// } else {
+//     res.redirect("/")
+//   }
+});
+
+app.get("/profile", (req, res) => {
+  res.render("profile") // make page to show user is logged in
+})
 
 app.get("/set-cookie", (req, res) => {
-  res.cookie("user", "jake");
+  res.cookie("user", users);
   res.send("cookie has been set!");
 });
+
+
+// app.post("/logout"), (req, res) => {
+//   res.clearCookie("userid");
+//   res.redirect("/urls");
+// } // make logout button
