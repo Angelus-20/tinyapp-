@@ -28,7 +28,9 @@
             </form>
             <%} else {%>
               <p>you're logged in <%= username %></p>
-              <button type="submit">Logout</button>
+              <form method="POST" action="/logout">
+                <button type="submit">Logout</button>
+              </form>
             <% }%>       
       </div>
     </div>

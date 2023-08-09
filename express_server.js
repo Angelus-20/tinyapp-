@@ -130,8 +130,7 @@ app.get("/set-cookie", (req, res) => {
 });
 
 
-app.post("/logout"), (req, res) => {
-  const { username } = req.body;
-  res.clearCookie("users", username);
+app.post("/logout", (req, res) => {
+  res.clearCookie("user");
   res.redirect("/urls");
-};
+});
