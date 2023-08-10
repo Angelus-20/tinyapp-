@@ -7,8 +7,17 @@ app.set("view engine", "ejs");
 app.use(cookieParser());
 
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  b2xVn2: {
+    id: "hk45oy",
+    longURL: "http://www.lighthouselabs.ca",
+    userId: "yoyo",
+  },
+
+  s9m5xK: {
+    id: "f4gte5",
+    longURL: "http://www.google.com",
+    userId: "yoyo",
+  },
 };
 
 const users = {
@@ -17,6 +26,7 @@ const users = {
     email: "user@example.com",
     password: "12345"
   },
+
   yoyo: {
     id: "yoyo",
     email: "yoyo@example.com",
@@ -33,6 +43,19 @@ function requireLogin(req, res, next) {
   }
 };
 
+function urlsForUser(id) {
+  const userUrls = {};
+
+  for (const shortURL in urlDatabase) {
+    if (urlDatabase[shortURL].userId === id) {
+      userUrls[shortURL] = urlDatabase[shortURL];
+    }
+  }
+
+  return userUrls;
+};
+
+
 app.use(express.urlencoded({ extended: true }));
 
 function generateRandomString() {
@@ -48,17 +71,28 @@ function generateRandomString() {
 app.post("/urls", (req, res) => {
   const longURL = req.body.longURL;
   const user = users[req.cookies.user_id];
-  
+
   if (!user) {
     const errorMessage = "You need to be logged in to shorten URLs.";
     res.status(401).render("error", { errorMessage });
-    return; // Return to avoid further execution
+    return;
   };
 
   const id = generateRandomString();
-  urlDatabase[id] = longURL;
+  urlDatabase[id] = {longURL, userId: req.cookies.user_id, id};
+  console.log(urlDatabase);
   res.redirect(`/urls/${id}`);
 });
+
+app.get("/urls", requireLogin, (req, res) => {
+  const userUrls = urlsForUser(req.cookies.user_id);
+  const templateVars = {
+    urls: userUrls,
+    user: users[req.cookies.user_id]
+  };
+  res.render("urls_index", templateVars);
+});
+
 
 app.get("/u/:id", (req, res) => {
   const id = req.params.id;
@@ -70,7 +104,7 @@ app.get("/u/:id", (req, res) => {
     const templateVars = {
       errorMessage: "The requested URL does not exist."
     };
-    res.render("error", templateVars); // Create an error_page.ejs template for the error message
+    res.render("error", templateVars);
   }
 });
 
@@ -82,33 +116,34 @@ app.get("/urls/new", requireLogin, (req, res) => {
   res.render("urls_new", templateVars);
 });
 
-app.get("/urls", (req, res) => {
-  console.log(req.cookies);
-  const templateVars = {
-    urls: urlDatabase,
-    user: users[req.cookies.user_id]
-  };
-  res.render("urls_index", templateVars);
-});
 
-app.get("/urls/:id", (req, res) => {
-   const user = users[req.cookies.user_id];
-  
-  if (!user) {
-    const errorMessage = "You need to be logged in to shorten URLs.";
-    res.status(401).render("error", { errorMessage });
-    return; // Return to avoid further execution
-  };
-  
+
+
+app.get("/urls/:id", requireLogin, (req, res) => {
+  const user = users[req.cookies.user_id];
   const id = req.params.id;
-  const longURL = urlDatabase[id];
+  const urlInfo = urlDatabase[id];
+
+  if (!urlInfo) {
+    const errorMessage = "The requested URL does not exist.";
+    res.status(404).render("error", { errorMessage });
+    return;
+  }
+
+  if (urlInfo.userId !== user.id) {
+    const errorMessage = "You do not own this URL.";
+    res.status(403).render("error", { errorMessage });
+    return;
+  }
+
   const templateVars = {
     id: id,
-    longURL: longURL,
+    longURL: urlInfo.longUrl,
     user: users[req.cookies.user_id],
   };
   res.render("urls_show", templateVars);
 });
+
 
 
 app.get("/urls.json", (req, res) => {
@@ -121,25 +156,37 @@ app.get("/", (req, res) => {
 
 app.post("/urls/:id/delete", requireLogin, (req, res) => {
   const idToDelete = req.params.id;
+  const user = users[req.cookies.user_id];
 
-  if (urlDatabase[idToDelete]) {
+  if (urlDatabase[idToDelete].userId !== user.id) {
+    res.status(403).send("You are not authorized to delete this URL");
+    return;
+  }
+
+  if (urlDatabase[idToDelete].userId !== user.id) {
+    res.status(403).send("You are not authorized to delete this URL");
+    return;
+  }
     delete urlDatabase[idToDelete];
     res.redirect("/urls");
-  } else {
-    res.status(404).send("URL not found");
-  }
 });
 
 app.post("/urls/:id/update", requireLogin, (req, res) => {
   const idToUpdate = req.params.id;
   const updatedURL = req.body.updatedURL;
+  const user = users[req.cookies.user.id];
 
-  if (urlDatabase[idToUpdate]) {
-    urlDatabase[idToUpdate] = updatedURL;
-    res.redirect(`/urls/${idToUpdate}`);
-  } else {
+  if (!urlDatabase[idToUpdate]) {
     res.status(404).send("URL not found");
+    return;
   }
+
+  if (urlDatabase[idToUpdate].userId !== user.id) {
+    res.status(403).send("You are not authorized to edit this URL");
+    return;
+  }
+  urlDatabase[idToUpdate].longUrl = updatedURL;
+  res.redirect(`/urls/${idToUpdate}`);
 });
 
 app.post("/urls/:id/submit", requireLogin, (req, res) => {
