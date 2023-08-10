@@ -138,6 +138,12 @@ app.post("/login", (req, res) => {
   res.redirect("/urls");
 });
 
+app.get("/login", (req, res) =>{
+  
+  res.render("login");
+  res.redirect("/register");
+})
+
 app.get("/set-cookie", (req, res) => {
   res.cookie("user", users);
   res.send("cookie has been set!");
@@ -149,6 +155,7 @@ app.post("/logout", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
+  console.log("Accessing /register route");
   res.render("register");
 });
 
@@ -174,3 +181,19 @@ function isValidEmail(email) {
 function isValidPassword(password) {
   return password.length >= 6;
 }
+
+/*<div class="nav-item login-form">
+  <% if (!user){%>
+    <form method="POST" action="/login">
+      <label for="email">Email</label>
+      <input type="text" id="email" name="email" placeholder="email">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Password">
+      <button type="submit">Login</button>
+    </form>
+    <%} else {%>
+      <p>you're logged in <%= user.email %></p>
+    <form method="POST" action="/logout">
+      <button type="submit">Logout</button>
+    </form>
+    <% }%></input>*/
