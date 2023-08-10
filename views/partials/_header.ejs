@@ -8,15 +8,25 @@
       data-target="#navbarNavAltMarkup"
       aria-controls="navbarNavAltMarkup"
       aria-expanded="false"
-      aria-label="Toggle navigation"
-    >
+      aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
       <div class="navbar-nav">
         <a class="nav-item nav-link" href="/urls">My URLs</a>
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
-        <a class="nav-item nav-link" href="/register">Register</a>
+      </div>
+      <div class="nav-item login-form d-flex align-items-center ml-auto">
+        <% if (!user) { %>
+          <form method="GET" action="/login">
+            <button type="submit">Login</button>
+          </form>
+        <% } else { %>
+          <p>You're logged in as <%= user.email %></p>
+          <form method="POST" action="/logout">
+            <button type="submit">Logout</button>
+          </form>
+        <% } %>
       </div>
     </div>
   </nav>

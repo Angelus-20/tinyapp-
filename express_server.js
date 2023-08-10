@@ -12,13 +12,13 @@ const urlDatabase = {
 };
 
 const users = {
-  1: {
-    user: "jake",
+  user: {
+    id: "user",
     email: "user@example.com",
     password: "12345"
   },
-  2: {
-    user: "yoyo",
+  yoyo: {
+    id: "yoyo",
     email: "yoyo@example.com",
     password: "123456",
   }
@@ -50,12 +50,18 @@ app.get("/u/:id", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  const templateVars = { user: users[req.cookies["user"]] };
+  const templateVars = { 
+    user: users[req.cookies.user_id]  
+  };
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlDatabase, user: users[req.cookies["user"]] };
+  console.log(req.cookies);
+  const templateVars = { 
+    urls: urlDatabase, 
+    user: users[req.cookies.user_id] 
+  };
   res.render("urls_index", templateVars);
 });
 
@@ -65,7 +71,7 @@ app.get("/urls/:id", (req, res) => {
   const templateVars = {
     id: id,
     longURL: longURL,
-    user: users[req.cookies["user"]],
+    user: users[req.cookies.user_id] ,
   };
   res.render("urls_show", templateVars);
 });
@@ -88,9 +94,6 @@ app.get("/hello", (req, res) => {
   res.render("hello_world", templateVars);
 });
 
-app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}!`);
-});
 
 app.post("/urls/:id/delete", (req, res) => {
   const idToDelete = req.params.id;
@@ -127,36 +130,33 @@ app.post("/urls/:id/submit", (req, res) => {
 
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
-  const userId = generateRandomString();
-
-  users[userId] = {
-    id: userId,
-    email: email,
-    password: password,
-  };
-  res.cookie("user", userId);
-  res.redirect("/urls");
+  const user = Object.values(users).find(u => u.email === email);
+  if (user && user.password === password) {
+    res.cookie("user_id", user.id);
+    console.log(user.id);
+    res.redirect("/urls");
+  } else {
+    res.status(403).send("Invalid email or password");
+  }
 });
 
 app.get("/login", (req, res) =>{
-  
+
   res.render("login");
-  res.redirect("/register");
 })
 
 app.get("/set-cookie", (req, res) => {
-  res.cookie("user", users);
+  res.cookie("user_id", users);
   res.send("cookie has been set!");
 });
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("user");
-  res.redirect("/urls");
+  res.clearCookie("user_id");
+  res.redirect("/login");
 });
 
-app.get("/register", (req, res) => {
-  console.log("Accessing /register route");
-  res.render("register");
+app.get('/register', (req, res) => {
+  res.render('register');
 });
 
 app.post("/register", (req, res) => {
@@ -182,18 +182,6 @@ function isValidPassword(password) {
   return password.length >= 6;
 }
 
-/*<div class="nav-item login-form">
-  <% if (!user){%>
-    <form method="POST" action="/login">
-      <label for="email">Email</label>
-      <input type="text" id="email" name="email" placeholder="email">
-      <label for="password">Password</label>
-      <input type="password" id="password" name="password" placeholder="Password">
-      <button type="submit">Login</button>
-    </form>
-    <%} else {%>
-      <p>you're logged in <%= user.email %></p>
-    <form method="POST" action="/logout">
-      <button type="submit">Logout</button>
-    </form>
-    <% }%></input>*/
+  app.listen(PORT, () => {
+    console.log(`Example app listening on port ${PORT}!`);
+  });

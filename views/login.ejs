@@ -8,19 +8,22 @@
 </head>
 
 <body>
-  <div class="nav-item login-form">
-    <form method="POST" action="/login">
-      <label for="email">Email</label>
-      <input type="text" id="email" name="email" placeholder="email">
-      <label for="password">Password</label>
-      <input type="password" id="password" name="password" placeholder="Password">
-      <button type="submit">Login</button>
-    </form>
-  </div>
-  <div class="nav-item register-form">
-    <from method="POST" action="/register">
-      <button type="submit">Register</button>
-    </from>
+  <div class="nav-item login-form d-flex align-items-center ml-auto">
+    <div class="nav-item login-form">
+      <form method="POST" action="/login">
+        <label for="email">Email</label>
+        <input type="text" id="email" name="email" placeholder="email">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="Password">
+        <button type="submit">Login</button>
+      </form>
+    </div>
+    <div class="nav-item register-form"><br>
+      <a class="nav-item nav-link" href="/register"></a>
+      <form method="GET" action="/register">
+        <button type="submit">Register</button>
+      </form>
+    </div>
   </div>
 </body>
 
