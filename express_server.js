@@ -1,10 +1,10 @@
 const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
-const cookieParser = require('cookie-parser')
+const cookieParser = require('cookie-parser');
 
 app.set("view engine", "ejs");
-app.use(cookieParser())
+app.use(cookieParser());
 
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
@@ -14,9 +14,15 @@ const urlDatabase = {
 const users = {
   1: {
     user: "jake",
+    email: "user@example.com",
     password: "12345"
+  },
+  2: {
+    user: "yoyo",
+    email: "yoyo@example.com",
+    password: "123456",
   }
-}
+};
 
 app.use(express.urlencoded({ extended: true }));
 
@@ -31,7 +37,7 @@ function generateRandomString() {
 }
 
 app.post("/urls", (req, res) => {
-  const longURL = req.body.longURL; 
+  const longURL = req.body.longURL;
   const id = generateRandomString();
   urlDatabase[id] = longURL;
   res.redirect(`/urls/${id}`);
@@ -40,25 +46,30 @@ app.post("/urls", (req, res) => {
 app.get("/u/:id", (req, res) => {
   const id = req.params.id;
   const longURL = urlDatabase[id];
-  res.redirect(longURL); 
+  res.redirect(longURL);
 });
 
 app.get("/urls/new", (req, res) => {
-  const templateVars = {username: req.cookies["user"], };
+  const templateVars = { user: users[req.cookies["user"]] };
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlDatabase, username: req.cookies["user"], };
+  const templateVars = { urls: urlDatabase, user: users[req.cookies["user"]] };
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/:id", (req, res) => {
   const id = req.params.id;
   const longURL = urlDatabase[id];
-  const templateVars = { id:id, longURL:longURL, username: req.cookies["user"]};
+  const templateVars = {
+    id: id,
+    longURL: longURL,
+    user: users[req.cookies["user"]],
+  };
   res.render("urls_show", templateVars);
 });
+
 
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
@@ -98,7 +109,7 @@ app.post("/urls/:id/update", (req, res) => {
 
   if (urlDatabase[idToUpdate]) {
     urlDatabase[idToUpdate] = updatedURL;
-    res.redirect(`/urls/${idToUpdate}`); 
+    res.redirect(`/urls/${idToUpdate}`);
   } else {
     res.status(404).send("URL not found");
   }
@@ -115,22 +126,51 @@ app.post("/urls/:id/submit", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  const { username } = req.body;
-    res.cookie("user", username);
-    res.redirect("/urls");
-});
+  const { email, password } = req.body;
+  const userId = generateRandomString();
 
-app.get("/profile", (req, res) => {
-  res.render("profile") // make page to show user is logged in
-})
+  users[userId] = {
+    id: userId,
+    email: email,
+    password: password,
+  };
+  res.cookie("user", userId);
+  res.redirect("/urls");
+});
 
 app.get("/set-cookie", (req, res) => {
   res.cookie("user", users);
   res.send("cookie has been set!");
 });
 
-
 app.post("/logout", (req, res) => {
   res.clearCookie("user");
   res.redirect("/urls");
 });
+
+app.get("/register", (req, res) => {
+  res.render("register");
+});
+
+app.post("/register", (req, res) => {
+  const { email, password } = req.body;
+
+  if (!isValidEmail(email) || !isValidPassword(password)) {
+    res.status(400).send("Invalid email or password");
+  } else {
+    const id = generateRandomString();
+    users[id] = { id, email, password };
+    console.log(users);
+    res.cookie("user_id", id);
+    res.redirect("/urls");
+  }
+});
+
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function isValidPassword(password) {
+  return password.length >= 6;
+}

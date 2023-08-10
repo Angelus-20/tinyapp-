@@ -18,19 +18,19 @@
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
         
         <div class="nav-item login-form">
-          <% if (!username){%>
+          <% if (!user){%>
             <form method="POST" action="/login">
-              <label for="username">Username</label>
-              <input type="text" id="username" name="username" placeholder="Username">
+              <label for="email">Email</label>
+              <input type="text" id="email" name="email" placeholder="email">
               <label for="password">Password</label>
               <input type="password" id="password" name="password" placeholder="Password">
               <button type="submit">Login</button>
             </form>
             <%} else {%>
-              <p>you're logged in <%= username %></p>
-              <form method="POST" action="/logout">
-                <button type="submit">Logout</button>
-              </form>
+              <p>you're logged in <%= user.email %></p>
+            <form method="POST" action="/logout">
+              <button type="submit">Logout</button>
+            </form>
             <% }%>       
       </div>
     </div>
