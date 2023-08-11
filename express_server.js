@@ -1,11 +1,14 @@
 const express = require("express");
 const app = express();
-const PORT = 8080; // default port 8080
-const cookieParser = require('cookie-parser');
+const PORT = 8080; 
+const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
 
 app.set("view engine", "ejs");
-app.use(cookieParser());
+app.use(cookieSession({
+  name: 'session',
+  keys: ['your-secret-key'], // replace with your actual secret key(s)
+}));
 
 const urlDatabase = {
   b2xVn2: {
@@ -35,15 +38,8 @@ const users = {
   }
 };
 
-const password = "12345"; // found in the req.body object
-const hashedPassword = bcrypt.hashSync(password, 10);
-
-bcrypt.compareSync("12345", hashedPassword); // returns true
-
-console.log('password:   ', hashedPassword);
-
 function requireLogin(req, res, next) {
-  const userId = req.cookies.user_id;
+  const userId = req.session.user_id;
   if (userId && users[userId]) {
     next();
   } else {
@@ -78,7 +74,7 @@ function generateRandomString() {
 
 app.post("/urls", (req, res) => {
   const longURL = req.body.longURL;
-  const user = users[req.cookies.user_id];
+  const user = users[req.session.user_id];
 
   if (!user) {
     const errorMessage = "You need to be logged in to shorten URLs.";
@@ -87,16 +83,16 @@ app.post("/urls", (req, res) => {
   };
 
   const id = generateRandomString();
-  urlDatabase[id] = {longURL, userId: req.cookies.user_id, id};
+  urlDatabase[id] = {longURL, userId: req.session.user_id, id};
   console.log(urlDatabase);
   res.redirect(`/urls/${id}`);
 });
 
 app.get("/urls", requireLogin, (req, res) => {
-  const userUrls = urlsForUser(req.cookies.user_id);
+  const userUrls = urlsForUser(req.session.user_id);
   const templateVars = {
     urls: userUrls,
-    user: users[req.cookies.user_id]
+    user: users[req.session.user_id]
   };
   res.render("urls_index", templateVars);
 });
@@ -119,7 +115,7 @@ app.get("/u/:id", (req, res) => {
 
 app.get("/urls/new", requireLogin, (req, res) => {
   const templateVars = {
-    user: users[req.cookies.user_id]
+    user: users[req.session.user_id]
   };
   res.render("urls_new", templateVars);
 });
@@ -128,7 +124,7 @@ app.get("/urls/new", requireLogin, (req, res) => {
 
 
 app.get("/urls/:id", requireLogin, (req, res) => {
-  const user = users[req.cookies.user_id];
+  const user = users[req.session.user_id];
   const id = req.params.id;
   const urlInfo = urlDatabase[id];
 
@@ -147,7 +143,7 @@ app.get("/urls/:id", requireLogin, (req, res) => {
   const templateVars = {
     id: id,
     longURL: urlInfo.longUrl,
-    user: users[req.cookies.user_id],
+    user: users[req.session.user_id],
   };
   res.render("urls_show", templateVars);
 });
@@ -164,7 +160,7 @@ app.get("/", (req, res) => {
 
 app.post("/urls/:id/delete", requireLogin, (req, res) => {
   const idToDelete = req.params.id;
-  const user = users[req.cookies.user_id];
+  const user = users[req.session.user_id];
 
   if (urlDatabase[idToDelete].userId !== user.id) {
     res.status(403).send("You are not authorized to delete this URL");
@@ -182,7 +178,7 @@ app.post("/urls/:id/delete", requireLogin, (req, res) => {
 app.post("/urls/:id/update", requireLogin, (req, res) => {
   const idToUpdate = req.params.id;
   const updatedURL = req.body.updatedURL;
-  const user = users[req.cookies.user.id];
+  const user = users[req.session.user_id];
 
   if (!urlDatabase[idToUpdate]) {
     res.status(404).send("URL not found");
@@ -211,12 +207,13 @@ app.post("/login", (req, res) => {
   const { email, password } = req.body;
   const user = Object.values(users).find(u => u.email === email);
   if (user && bcrypt.compareSync(password, user.password)) {
-    res.cookie("user_id", user.id);
+    req.session.user_id = user.id;
     res.redirect("/urls");
   } else {
     res.status(403).send("Invalid email or password");
   }
 });
+
 
 app.get("/login", (req, res) => {
   res.render("login");
