@@ -1,8 +1,10 @@
 const express = require("express");
 const app = express();
-const PORT = 8080; 
+const PORT = 8080;
 const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
+const helpers = require('./views/helpers');
+
 
 app.set("view engine", "ejs");
 app.use(cookieSession({
@@ -59,7 +61,6 @@ function urlsForUser(id) {
   return userUrls;
 };
 
-
 app.use(express.urlencoded({ extended: true }));
 
 function generateRandomString() {
@@ -83,7 +84,7 @@ app.post("/urls", (req, res) => {
   };
 
   const id = generateRandomString();
-  urlDatabase[id] = {longURL, userId: req.session.user_id, id};
+  urlDatabase[id] = { longURL, userId: req.session.user_id, id };
   console.log(urlDatabase);
   res.redirect(`/urls/${id}`);
 });
@@ -96,7 +97,6 @@ app.get("/urls", requireLogin, (req, res) => {
   };
   res.render("urls_index", templateVars);
 });
-
 
 app.get("/u/:id", (req, res) => {
   const id = req.params.id;
@@ -112,16 +112,12 @@ app.get("/u/:id", (req, res) => {
   }
 });
 
-
 app.get("/urls/new", requireLogin, (req, res) => {
   const templateVars = {
     user: users[req.session.user_id]
   };
   res.render("urls_new", templateVars);
 });
-
-
-
 
 app.get("/urls/:id", requireLogin, (req, res) => {
   const user = users[req.session.user_id];
@@ -148,14 +144,8 @@ app.get("/urls/:id", requireLogin, (req, res) => {
   res.render("urls_show", templateVars);
 });
 
-
-
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
-});
-
-app.get("/", (req, res) => {
-  res.send("Hello!");
 });
 
 app.post("/urls/:id/delete", requireLogin, (req, res) => {
@@ -171,8 +161,8 @@ app.post("/urls/:id/delete", requireLogin, (req, res) => {
     res.status(403).send("You are not authorized to delete this URL");
     return;
   }
-    delete urlDatabase[idToDelete];
-    res.redirect("/urls");
+  delete urlDatabase[idToDelete];
+  res.redirect("/urls");
 });
 
 app.post("/urls/:id/update", requireLogin, (req, res) => {
@@ -205,7 +195,8 @@ app.post("/urls/:id/submit", requireLogin, (req, res) => {
 
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
-  const user = Object.values(users).find(u => u.email === email);
+  const user = helpers.getUserByEmail(email, users);
+
   if (user && bcrypt.compareSync(password, user.password)) {
     req.session.user_id = user.id;
     res.redirect("/urls");
@@ -214,42 +205,42 @@ app.post("/login", (req, res) => {
   }
 });
 
-
 app.get("/login", (req, res) => {
-  res.render("login");
+  const user = req.session.user_id ? users[req.session.user_id] : null;
+  res.render("login", { user: user });
 });
 
-app.get("/set-cookie", (req, res) => {
-  res.cookie("user_id", users);
-  res.send("cookie has been set!");
-});
+app.use(cookieSession({
+  name: 'session',
+  keys: ['your-secret-key'],
+}));
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
+  req.session = null;
   res.redirect("/login");
 });
 
 app.get('/register', (req, res) => {
-  res.render('register');
+  const user = req.session.user_id ? users[req.session.user_id] : null;
+  res.render('register', { user });
+  res.redirect("/urls");
 });
 
-  app.post("/register", (req, res) => {
-    const { email, password } = req.body;
-  
-    if (!isValidEmail(email) || !isValidPassword(password)) {
-      res.status(400).send("Invalid email or password");
-    } else {
-      const id = generateRandomString();
+app.post("/register", (req, res) => {
+  const { email, password } = req.body;
 
-      const hashedPassword = bcrypt.hashSync(password, 10);
-      users[id] = { id, email, password: hashedPassword }; 
-      console.log(users);
-      
-      res.cookie("user_id", id);
-      res.redirect("/urls");
-    }
-  });
-  
+  if (!isValidEmail(email) || !isValidPassword(password)) {
+    res.status(400).send("Invalid email or password");
+  } else if (helpers.getUserByEmail(email, users)) {
+    res.status(400).send("Email already registered");
+  } else {
+    const id = generateRandomString();
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    users[id] = { id, email, password: hashedPassword };
+    req.session.user_id = id;
+    res.redirect("/urls");
+  }
+});
 
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

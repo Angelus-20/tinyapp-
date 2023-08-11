@@ -18,14 +18,14 @@
       </div>
       <div class="nav-item login-form d-flex align-items-center ml-auto">
         <% if (!user) { %>
-          <form method="GET" action="/login">
-            <button type="submit">Login</button>
-          </form>
+          <form method="GET" action="/login"></form>
         <% } else { %>
-          <p>You're logged in as <%= user.email %></p>
+          <div class="d-flex align-items-center">
+          <p class="mb-0 mr-3">You're logged in as <%= user.email %></p>
           <form method="POST" action="/logout">
-            <button type="submit">Logout</button>
+            <button type="submit" class="btn btn-primary">Logout</button>
           </form>
+        </div>
         <% } %>
       </div>
     </div>
