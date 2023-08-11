@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
 const cookieParser = require('cookie-parser');
+const bcrypt = require('bcryptjs');
 
 app.set("view engine", "ejs");
 app.use(cookieParser());
@@ -24,15 +25,22 @@ const users = {
   user: {
     id: "user",
     email: "user@example.com",
-    password: "12345"
+    password: "$2a$10$z8hhcQFKd2XxNKizEzO.6u1sHHjB77ZDGKQznGDMFPQBDE0hSwcd6"
   },
 
   yoyo: {
     id: "yoyo",
     email: "yoyo@example.com",
-    password: "123456",
+    password: "$2a$10$pk4H11wtqoEwjCCrV8ywaOar8hw7Ni/5Gelfx2LtFILqhFryRJDfC",
   }
 };
+
+const password = "12345"; // found in the req.body object
+const hashedPassword = bcrypt.hashSync(password, 10);
+
+bcrypt.compareSync("12345", hashedPassword); // returns true
+
+console.log('password:   ', hashedPassword);
 
 function requireLogin(req, res, next) {
   const userId = req.cookies.user_id;
@@ -202,7 +210,7 @@ app.post("/urls/:id/submit", requireLogin, (req, res) => {
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
   const user = Object.values(users).find(u => u.email === email);
-  if (user && user.password === password) {
+  if (user && bcrypt.compareSync(password, user.password)) {
     res.cookie("user_id", user.id);
     res.redirect("/urls");
   } else {
@@ -228,19 +236,23 @@ app.get('/register', (req, res) => {
   res.render('register');
 });
 
-app.post("/register", (req, res) => {
-  const { email, password } = req.body;
+  app.post("/register", (req, res) => {
+    const { email, password } = req.body;
+  
+    if (!isValidEmail(email) || !isValidPassword(password)) {
+      res.status(400).send("Invalid email or password");
+    } else {
+      const id = generateRandomString();
 
-  if (!isValidEmail(email) || !isValidPassword(password)) {
-    res.status(400).send("Invalid email or password");
-  } else {
-    const id = generateRandomString();
-    users[id] = { id, email, password };
-    console.log(users);
-    res.cookie("user_id", id);
-    res.redirect("/urls");
-  }
-});
+      const hashedPassword = bcrypt.hashSync(password, 10);
+      users[id] = { id, email, password: hashedPassword }; 
+      console.log(users);
+      
+      res.cookie("user_id", id);
+      res.redirect("/urls");
+    }
+  });
+  
 
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
