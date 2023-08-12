@@ -3,63 +3,16 @@ const app = express();
 const PORT = 8080;
 const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
-const helpers = require('./views/helpers');
+const helpers = require('./helpers');
+const { requireLogin, urlsForUser } = require('./helpers');
+const { urlDatabase, users } = require('./data');
 
 
 app.set("view engine", "ejs");
 app.use(cookieSession({
   name: 'session',
-  keys: ['your-secret-key'], // replace with your actual secret key(s)
+  keys: ['your-secret-key'],
 }));
-
-const urlDatabase = {
-  b2xVn2: {
-    id: "hk45oy",
-    longURL: "http://www.lighthouselabs.ca",
-    userId: "yoyo",
-  },
-
-  s9m5xK: {
-    id: "f4gte5",
-    longURL: "http://www.google.com",
-    userId: "yoyo",
-  },
-};
-
-const users = {
-  user: {
-    id: "user",
-    email: "user@example.com",
-    password: "$2a$10$z8hhcQFKd2XxNKizEzO.6u1sHHjB77ZDGKQznGDMFPQBDE0hSwcd6"
-  },
-
-  yoyo: {
-    id: "yoyo",
-    email: "yoyo@example.com",
-    password: "$2a$10$pk4H11wtqoEwjCCrV8ywaOar8hw7Ni/5Gelfx2LtFILqhFryRJDfC",
-  }
-};
-
-function requireLogin(req, res, next) {
-  const userId = req.session.user_id;
-  if (userId && users[userId]) {
-    next();
-  } else {
-    res.redirect("/login");
-  }
-};
-
-function urlsForUser(id) {
-  const userUrls = {};
-
-  for (const shortURL in urlDatabase) {
-    if (urlDatabase[shortURL].userId === id) {
-      userUrls[shortURL] = urlDatabase[shortURL];
-    }
-  }
-
-  return userUrls;
-};
 
 app.use(express.urlencoded({ extended: true }));
 
@@ -73,23 +26,29 @@ function generateRandomString() {
   return randomString;
 };
 
-app.post("/urls", (req, res) => {
-  const longURL = req.body.longURL;
-  const user = users[req.session.user_id];
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
-  if (!user) {
-    const errorMessage = "You need to be logged in to shorten URLs.";
-    res.status(401).render("error", { errorMessage });
-    return;
-  };
+function isValidPassword(password) {
+  return password.length >= 6;
+};
 
-  const id = generateRandomString();
-  urlDatabase[id] = { longURL, userId: req.session.user_id, id };
-  console.log(urlDatabase);
-  res.redirect(`/urls/${id}`);
+app.get("/", (req, res) => {
+  if (req.session.user_id) {
+    res.redirect("/urls");
+  } else {
+    res.redirect("/login");
+  }
 });
 
-app.get("/urls", requireLogin, (req, res) => {
+app.get("/urls", (req, res) => {
+  if (!req.session.user_id) {
+    const errorMessage = "You need to be logged in to view URLs.";
+    return res.status(401).render("error", { errorMessage });
+  }
+
   const userUrls = urlsForUser(req.session.user_id);
   const templateVars = {
     urls: userUrls,
@@ -100,16 +59,16 @@ app.get("/urls", requireLogin, (req, res) => {
 
 app.get("/u/:id", (req, res) => {
   const id = req.params.id;
-  const longURL = urlDatabase[id];
+  const urlInfo = urlDatabase[id];
 
-  if (longURL) {
-    res.redirect(longURL);
-  } else {
+  if (!urlInfo) {
     const templateVars = {
       errorMessage: "The requested URL does not exist."
     };
-    res.render("error", templateVars);
+    return res.status(404).render("error", templateVars);
   }
+
+  res.redirect(urlInfo.longURL);
 });
 
 app.get("/urls/new", requireLogin, (req, res) => {
@@ -125,71 +84,33 @@ app.get("/urls/:id", requireLogin, (req, res) => {
   const urlInfo = urlDatabase[id];
 
   if (!urlInfo) {
-    const errorMessage = "The requested URL does not exist.";
-    res.status(404).render("error", { errorMessage });
-    return;
+    const templateVars = {
+      errorMessage: "The requested URL does not exist."
+    };
+    return res.status(404).render("error", templateVars);
   }
 
   if (urlInfo.userId !== user.id) {
     const errorMessage = "You do not own this URL.";
-    res.status(403).render("error", { errorMessage });
-    return;
+    return res.status(403).render("error", { errorMessage });
   }
 
   const templateVars = {
     id: id,
-    longURL: urlInfo.longUrl,
+    longURL: urlInfo.longURL,
     user: users[req.session.user_id],
   };
   res.render("urls_show", templateVars);
 });
 
-app.get("/urls.json", (req, res) => {
-  res.json(urlDatabase);
-});
 
-app.post("/urls/:id/delete", requireLogin, (req, res) => {
-  const idToDelete = req.params.id;
-  const user = users[req.session.user_id];
 
-  if (urlDatabase[idToDelete].userId !== user.id) {
-    res.status(403).send("You are not authorized to delete this URL");
-    return;
-  }
-
-  if (urlDatabase[idToDelete].userId !== user.id) {
-    res.status(403).send("You are not authorized to delete this URL");
-    return;
-  }
-  delete urlDatabase[idToDelete];
-  res.redirect("/urls");
-});
-
-app.post("/urls/:id/update", requireLogin, (req, res) => {
-  const idToUpdate = req.params.id;
-  const updatedURL = req.body.updatedURL;
-  const user = users[req.session.user_id];
-
-  if (!urlDatabase[idToUpdate]) {
-    res.status(404).send("URL not found");
-    return;
-  }
-
-  if (urlDatabase[idToUpdate].userId !== user.id) {
-    res.status(403).send("You are not authorized to edit this URL");
-    return;
-  }
-  urlDatabase[idToUpdate].longUrl = updatedURL;
-  res.redirect(`/urls/${idToUpdate}`);
-});
-
-app.post("/urls/:id/submit", requireLogin, (req, res) => {
-  const idToUpdate = req.params.id;
-  const updatedURL = req.body.updatedURL;
-
-  if (urlDatabase[idToUpdate]) {
-    urlDatabase[idToUpdate] = updatedURL;
-    res.redirect(`/urls`);
+app.get("/login", (req, res) => {
+  if (req.session.user_id) {
+    res.redirect("/urls");
+  } else {
+    const user = req.session.user_id ? users[req.session.user_id] : null;
+    res.render("login", { user: user });
   }
 });
 
@@ -205,34 +126,23 @@ app.post("/login", (req, res) => {
   }
 });
 
-app.get("/login", (req, res) => {
-  const user = req.session.user_id ? users[req.session.user_id] : null;
-  res.render("login", { user: user });
-});
-
-app.use(cookieSession({
-  name: 'session',
-  keys: ['your-secret-key'],
-}));
-
-app.post("/logout", (req, res) => {
-  req.session = null;
-  res.redirect("/login");
-});
-
-app.get('/register', (req, res) => {
-  const user = req.session.user_id ? users[req.session.user_id] : null;
-  res.render('register', { user });
-  res.redirect("/urls");
+app.get("/register", (req, res) => {
+  if (req.session.user_id) {
+    res.redirect("/urls");
+  } else {
+    const user = req.session.user_id ? users[req.session.user_id] : null;
+    res.render('register', { user });
+  }
 });
 
 app.post("/register", (req, res) => {
   const { email, password } = req.body;
 
   if (!isValidEmail(email) || !isValidPassword(password)) {
-    res.status(400).send("Invalid email or password");
+    const errorMessage = "Invalid email or password. Password must be at least 6 characters long.";
+    return res.status(400).render("error", { errorMessage });
   } else if (helpers.getUserByEmail(email, users)) {
-    res.status(400).send("Email already registered");
+    return res.status(400).send("Email already registered");
   } else {
     const id = generateRandomString();
     const hashedPassword = bcrypt.hashSync(password, 10);
@@ -242,14 +152,70 @@ app.post("/register", (req, res) => {
   }
 });
 
-function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
+app.post("/logout", (req, res) => {
+  req.session = null;
+  res.redirect("/login");
+});
 
-function isValidPassword(password) {
-  return password.length >= 6;
-};
+app.post("/urls", (req, res) => {
+  console.log("Received form submission");
+  const longURL = req.body.longURL;
+  const user = users[req.session.user_id];
+
+  if (!user) {
+    const errorMessage = "You need to be logged in to shorten URLs.";
+    return res.status(401).render("error", { errorMessage });
+  }
+
+  const id = generateRandomString();
+  urlDatabase[id] = { longURL, userId: req.session.user_id, id };
+  console.log(urlDatabase);
+  res.redirect(`/urls/${id}`);
+});
+
+app.post("/urls/:id/delete", requireLogin, (req, res) => {
+  const idToDelete = req.params.id;
+  const user = users[req.session.user_id];
+
+  if (!req.session.user_id) {
+    const errorMessage = "You need to be logged in to perform this action.";
+    return res.status(401).render("error", { errorMessage });
+  }
+
+  if (urlDatabase[idToDelete].userId !== user.id) {
+    return res.status(403).send("You are not authorized to delete this URL");
+  }
+  delete urlDatabase[idToDelete];
+  res.redirect("/urls");
+});
+
+app.post("/urls/:id/update", requireLogin, (req, res) => {
+  const idToUpdate = req.params.id;
+  const updatedURL = req.body.updatedURL;
+  const user = users[req.session.user_id];
+
+  if (!urlDatabase[idToUpdate]) {
+    return res.status(404).send("URL not found");
+  }
+
+  if (!req.session.user_id) {
+    const errorMessage = "You need to be logged in to perform this action.";
+    return res.status(401).render("error", { errorMessage });
+  }
+
+  urlDatabase[idToUpdate].longURL = updatedURL;
+  res.redirect(`/urls`);
+});
+
+app.post("/urls/:id/submit", requireLogin, (req, res) => {
+  const idToUpdate = req.params.id;
+  const updatedURL = req.body.updatedURL;
+
+  if (urlDatabase[idToUpdate]) {
+    urlDatabase[idToUpdate].longURL = updatedURL;
+    res.redirect(`/urls`);
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
