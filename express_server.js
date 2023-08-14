@@ -78,32 +78,41 @@ app.get("/urls/new", requireLogin, (req, res) => {
   res.render("urls_new", templateVars);
 });
 
-app.get("/urls/:id", requireLogin, (req, res) => {
+app.get("/urls/:id", (req, res) => {
   const user = users[req.session.user_id];
   const id = req.params.id;
   const urlInfo = urlDatabase[id];
 
+  let errorMessage = "";
+
   if (!urlInfo) {
+    errorMessage = "The requested URL does not exist.";
     const templateVars = {
-      errorMessage: "The requested URL does not exist."
+      errorMessage,
+      user
     };
     return res.status(404).render("error", templateVars);
   }
 
+  if (!req.session.user_id) {
+    errorMessage = "You need to be logged in to access this page.";
+    return res.status(401).render("error", { errorMessage });
+  }
+
   if (urlInfo.userId !== user.id) {
-    const errorMessage = "You do not own this URL.";
+    errorMessage = "You do not own this URL.";
     return res.status(403).render("error", { errorMessage });
   }
 
   const templateVars = {
-    id: id,
-    longURL: urlInfo.longURL,
-    user: users[req.session.user_id],
+    urlInfo,
+    errorMessage,
+    user,
+    longURL: urlInfo.longURL, id
   };
+
   res.render("urls_show", templateVars);
 });
-
-
 
 app.get("/login", (req, res) => {
   if (req.session.user_id) {
@@ -185,11 +194,17 @@ app.post("/urls/:id/delete", requireLogin, (req, res) => {
   if (urlDatabase[idToDelete].userId !== user.id) {
     return res.status(403).send("You are not authorized to delete this URL");
   }
+  
+  if (user.id !== urlDatabase[idToUpdate].userId){
+    const errorMessage = "You are not the owner of this Url to perform this action.";
+    return res.status(401).render("error", { errorMessage });
+  }
+
   delete urlDatabase[idToDelete];
   res.redirect("/urls");
 });
 
-app.post("/urls/:id/update", requireLogin, (req, res) => {
+app.post("/urls/:id", requireLogin, (req, res) => {
   const idToUpdate = req.params.id;
   const updatedURL = req.body.updatedURL;
   const user = users[req.session.user_id];
@@ -200,6 +215,11 @@ app.post("/urls/:id/update", requireLogin, (req, res) => {
 
   if (!req.session.user_id) {
     const errorMessage = "You need to be logged in to perform this action.";
+    return res.status(401).render("error", { errorMessage });
+  }
+
+  if (user.id !== urlDatabase[idToUpdate].userId){
+    const errorMessage = "You are not the owner of this Url to perform this action.";
     return res.status(401).render("error", { errorMessage });
   }
 
